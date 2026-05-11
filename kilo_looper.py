@@ -36,7 +36,7 @@ launch_args = [
     "--disable-renderer-backgrounding",
 ]
 if args.h:
-    launch_args += ["--disable-gpu", "--single-process"]
+    launch_args += ["--disable-gpu", "--process-per-site"]
 
 def try_goto(page, url, retries=3):
     for a in range(retries):
@@ -44,19 +44,16 @@ def try_goto(page, url, retries=3):
             page.goto(url, wait_until="domcontentloaded", timeout=120000)
             return True
         except Exception as e:
-            print(f"  ��� Retry {a+1}/{retries} for {url}: {e}", flush=True)
+            print(f"  Retry {a+1}/{retries} for {url}: {e}", flush=True)
             time.sleep(10)
     return False
 
-def try_reload(page, retries=3):
-    for a in range(retries):
-        try:
-            page.reload(wait_until="domcontentloaded", timeout=120000)
-            return True
-        except Exception as e:
-            print(f"  Retry {a+1}/{retries}: {e}", flush=True)
-            time.sleep(10)
-    return False
+def open_tab(context, url, retries=3):
+    page = context.new_page()
+    if try_goto(page, url):
+        return page
+    page.close()
+    return None
 
 def start_browser():
     p = sync_playwright().start()
@@ -69,15 +66,13 @@ def start_browser():
     context.add_cookies(COOKIES)
     pages = []
     for i, url in enumerate(URLS):
-        page = context.new_page()
-        if not try_goto(page, url):
-            page.close()
+        page = open_tab(context, url)
+        if not page:
             continue
         pages.append(page)
         print(f"Tab {i+1}: {url}", flush=True)
         time.sleep(15)
     if not pages:
-        print("No tabs loaded, aborting...", flush=True)
         try: browser.close()
         except: pass
         try: p.stop()
@@ -97,12 +92,17 @@ while True:
         while True:
             time.sleep(300)
             print(f"=== Reload cycle {cycle} ===", flush=True)
+            for page in pages:
+                try: page.close()
+                except: pass
+            pages = []
             crashed = False
-            for i, page in enumerate(pages):
-                if not try_reload(page):
-                    print(f"  Tab {i+1} failed to reload", flush=True)
+            for i, url in enumerate(URLS):
+                page = open_tab(context, url)
+                if not page:
                     crashed = True
                     break
+                pages.append(page)
                 print(f"  Tab {i+1} reloaded", flush=True)
                 time.sleep(10)
             if crashed:
