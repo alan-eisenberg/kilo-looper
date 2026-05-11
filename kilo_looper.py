@@ -70,63 +70,38 @@ async def start_browser():
         reduced_motion="reduce",
     )
     await context.add_cookies(COOKIES)
-    pages = []
-    for i, url in enumerate(URLS):
-        page = await open_tab(context, url)
-        if not page:
-            continue
-        pages.append(page)
-        print(f"Tab {i+1}: {url}", flush=True)
-        await asyncio.sleep(15)
-    if not pages:
-        try:
-            await browser.close()
-        except Exception:
-            pass
-        try:
-            await p.stop()
-        except Exception:
-            pass
-        return None, None, None, None
-    return p, browser, context, pages
+    page = await context.new_page()
+    return p, browser, context, page
 
 
 async def main_loop():
     while True:
         try:
-            p, browser, context, pages = await start_browser()
-            if not pages:
+            p, browser, context, page = await start_browser()
+            if not page:
                 print("Browser failed to start, retrying in 30s...", flush=True)
                 await asyncio.sleep(30)
                 continue
-            print("All tabs open. Reloading every 5min...", flush=True)
+            print("Single-page rotation started. Visiting URLs then sleeping 5min...", flush=True)
             cycle = 1
             while True:
-                await asyncio.sleep(300)
-                print(f"=== Reload cycle {cycle} ===", flush=True)
-                crashed = False
-                for i, page in enumerate(pages):
-                    try:
-                        await page.reload(wait_until="domcontentloaded", timeout=120000)
-                        print(f"  Tab {i+1} reloaded", flush=True)
-                        await asyncio.sleep(10)
-                    except Exception as e:
-                        print(f"  Reload failed for tab {i+1}: {e}", flush=True)
-                        crashed = True
-                        break
-                if crashed:
-                    raise Exception("browser crashed")
+                for i, url in enumerate(URLS):
+                    ok = await try_goto(page, url)
+                    if not ok:
+                        raise Exception(f"navigation failed for {url}")
+                    print(f"  Visited {i+1}: {url}", flush=True)
+                    await asyncio.sleep(10)
+                print(f"=== Cycle {cycle} complete, sleeping 5min ===", flush=True)
                 cycle += 1
+                await asyncio.sleep(300)
         except Exception as e:
             print(f"Error: {e}, restarting in 10s...", flush=True)
             try:
-                if browser:
-                    await browser.close()
+                await browser.close()
             except Exception:
                 pass
             try:
-                if p:
-                    await p.stop()
+                await p.stop()
             except Exception:
                 pass
             await asyncio.sleep(10)
