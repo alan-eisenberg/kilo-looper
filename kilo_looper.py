@@ -14,6 +14,10 @@ URLS = [
     "https://app.kilo.ai/app-builder/9251d86b-5f55-4929-be1a-4e8c73b9b4ce",
     "https://app.kilo.ai/app-builder/270d6dde-6734-48a8-bf60-ec8c2f36f153",
     "https://app.kilo.ai/app-builder/8ec50bc1-6e95-4f41-8a1d-cbbb197357cf",
+    "https://app.kilo.ai/app-builder/b11a420f-e511-4d8e-ac2d-2f94c32d6278",
+    "https://app.kilo.ai/app-builder/2a9476e1-0f52-4da6-a44a-0ef9db6481ee",
+    "https://app.kilo.ai/app-builder/5d5d2765-de18-4d3d-afd7-6bc8f0c842e0",
+    "https://app.kilo.ai/app-builder/f82bf59d-065f-471d-bc90-9f524aefe616",
 ]
 
 ap = argparse.ArgumentParser(add_help=False)
