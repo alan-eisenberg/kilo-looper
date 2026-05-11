@@ -38,6 +38,26 @@ launch_args = [
 if args.h:
     launch_args += ["--disable-gpu", "--single-process"]
 
+def try_goto(page, url, retries=3):
+    for a in range(retries):
+        try:
+            page.goto(url, wait_until="domcontentloaded", timeout=120000)
+            return True
+        except Exception as e:
+            print(f"  ��� Retry {a+1}/{retries} for {url}: {e}", flush=True)
+            time.sleep(10)
+    return False
+
+def try_reload(page, retries=3):
+    for a in range(retries):
+        try:
+            page.reload(wait_until="domcontentloaded", timeout=120000)
+            return True
+        except Exception as e:
+            print(f"  Retry {a+1}/{retries}: {e}", flush=True)
+            time.sleep(10)
+    return False
+
 def start_browser():
     p = sync_playwright().start()
     browser = p.chromium.launch(headless=bool(args.h), args=launch_args)
@@ -50,39 +70,48 @@ def start_browser():
     pages = []
     for i, url in enumerate(URLS):
         page = context.new_page()
-        page.goto(url, wait_until="domcontentloaded", timeout=60000)
+        if not try_goto(page, url):
+            page.close()
+            continue
         pages.append(page)
         print(f"Tab {i+1}: {url}", flush=True)
+        time.sleep(15)
+    if not pages:
+        print("No tabs loaded, aborting...", flush=True)
+        try: browser.close()
+        except: pass
+        try: p.stop()
+        except: pass
+        return None, None, None, None
     return p, browser, context, pages
 
-p, browser, context, pages = start_browser()
-print("All tabs open. Reloading every 5min...", flush=True)
-cycle = 1
-
 while True:
-    time.sleep(300)
-    print(f"=== Reload cycle {cycle} ===", flush=True)
-    crashed = False
-    for i, page in enumerate(pages):
-        try:
-            page.reload(wait_until="domcontentloaded", timeout=60000)
-            print(f"  Tab {i+1} reloaded", flush=True)
-            time.sleep(10)
-        except Exception as e:
-            print(f"  Tab {i+1} failed: {e}", flush=True)
-            crashed = True
-            break
-    if crashed:
-        print("  Browser crashed, restarting...", flush=True)
-        try:
-            browser.close()
-        except:
-            pass
-        try:
-            p.stop()
-        except:
-            pass
-        time.sleep(5)
+    try:
         p, browser, context, pages = start_browser()
-        print("  Browser restarted.", flush=True)
-    cycle += 1
+        if not pages:
+            print("Browser failed to start, retrying in 30s...", flush=True)
+            time.sleep(30)
+            continue
+        print("All tabs open. Reloading every 5min...", flush=True)
+        cycle = 1
+        while True:
+            time.sleep(300)
+            print(f"=== Reload cycle {cycle} ===", flush=True)
+            crashed = False
+            for i, page in enumerate(pages):
+                if not try_reload(page):
+                    print(f"  Tab {i+1} failed to reload", flush=True)
+                    crashed = True
+                    break
+                print(f"  Tab {i+1} reloaded", flush=True)
+                time.sleep(10)
+            if crashed:
+                raise Exception("browser crashed")
+            cycle += 1
+    except Exception as e:
+        print(f"Error: {e}, restarting in 10s...", flush=True)
+        try: browser.close()
+        except: pass
+        try: p.stop()
+        except: pass
+        time.sleep(10)
