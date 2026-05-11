@@ -104,21 +104,16 @@ async def main_loop():
             while True:
                 await asyncio.sleep(300)
                 print(f"=== Reload cycle {cycle} ===", flush=True)
-                for page in pages:
-                    try:
-                        await page.close()
-                    except Exception:
-                        pass
-                pages = []
                 crashed = False
-                for i, url in enumerate(URLS):
-                    page = await open_tab(context, url)
-                    if not page:
+                for i, page in enumerate(pages):
+                    try:
+                        await page.reload(wait_until="domcontentloaded", timeout=120000)
+                        print(f"  Tab {i+1} reloaded", flush=True)
+                        await asyncio.sleep(10)
+                    except Exception as e:
+                        print(f"  Reload failed for tab {i+1}: {e}", flush=True)
                         crashed = True
                         break
-                    pages.append(page)
-                    print(f"  Tab {i+1} reloaded", flush=True)
-                    await asyncio.sleep(10)
                 if crashed:
                     raise Exception("browser crashed")
                 cycle += 1
