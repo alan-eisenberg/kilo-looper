@@ -1,5 +1,6 @@
-import time, argparse
-from playwright.sync_api import sync_playwright
+import argparse
+import asyncio
+from playwright.async_api import async_playwright
 
 COOKIES = [
   {"domain": "app.kilo.ai", "hostOnly": True, "httpOnly": True, "name": "__Host-next-auth.csrf-token", "path": "/", "sameSite": "Lax", "secure": True, "session": True, "storeId": "0", "value": "0555d8751835dc23c83f4fa6182b67f01189f17a6af8b7f14550a5caac3a929b%7C7f091ec706bd86b4021bf8c6c1852fa8ea30f2accd2d82c42709ec6a2f346d73"},
